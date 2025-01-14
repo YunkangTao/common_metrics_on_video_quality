@@ -13,9 +13,11 @@ from calculate_fvd import calculate_fvd
 from calculate_psnr import calculate_psnr
 from calculate_ssim import calculate_ssim
 from calculate_lpips import calculate_lpips
+from calculate_fid import Calculate_fid
+from calculate_clipscore import calculate_clipscore
 
 
-def get_all_mp4_files(root_dir: str, max_videos) -> List[str]:
+def get_all_mp4_files(root_dir: str, max_videos = None) -> List[str]:
     """
     递归获取给定目录及其子目录下所有的 .mp4 文件。
     """
@@ -26,7 +28,9 @@ def get_all_mp4_files(root_dir: str, max_videos) -> List[str]:
                 full_path = os.path.join(dirpath, filename)
                 mp4_files.append(full_path)
     mp4_files.sort()  # 对列表进行排序
-    return mp4_files[:max_videos]
+    if max_videos is not None:
+        mp4_files = mp4_files[:max_videos]
+    return mp4_files
 
 
 def read_video_frames(video_path: str, max_frames: int = None, crop_size: int = 224) -> torch.Tensor:
@@ -128,18 +132,21 @@ def generate_video_tensor(root_dir: str, crop_size: int = 224, max_frames: int =
     return final_tensor
 
 
-def main(videos1, videos2, device, output_path):
+def main(videos1, videos2, device, output_path, video_paths1, video_paths2):
     result = {}
     # only_final = False
     only_final = True
-    result['fvd'] = calculate_fvd(videos1, videos2, device, method='styleganv', only_final=only_final)
-    # result['fvd'] = calculate_fvd(videos1, videos2, device, method='videogpt', only_final=only_final)
+    # result['fvd'] = calculate_fvd(videos1, videos2, device, method='styleganv', only_final=only_final)
+    result['fvd'] = calculate_fvd(videos1, videos2, device, method='videogpt', only_final=only_final)
     result['ssim'] = calculate_ssim(videos1, videos2, only_final=only_final)
     result['psnr'] = calculate_psnr(videos1, videos2, only_final=only_final)
     result['lpips'] = calculate_lpips(videos1, videos2, device, only_final=only_final)
+    result['fid'] = Calculate_fid()
+    result['clipscore'] = calculate_clipscore(video_paths1, video_paths2)
 
-    with open(output_path, 'w', encoding='utf-8') as file:
-        json.dump(result, file, indent=4, ensure_ascii=False)
+    # with open(output_path, 'w', encoding='utf-8') as file:
+    #     json.dump(result, file, indent=5, ensure_ascii=False)
+    print(result)
 
 
 if __name__ == '__main__':
@@ -151,16 +158,15 @@ if __name__ == '__main__':
     # videos1 = torch.zeros(NUMBER_OF_VIDEOS, VIDEO_LENGTH, CHANNEL, SIZE, SIZE, requires_grad=False)
     # videos2 = torch.zeros(NUMBER_OF_VIDEOS, VIDEO_LENGTH, CHANNEL, SIZE, SIZE, requires_grad=False)
 
-    videos1_path = "/mnt/chenyang_lei/Datasets/easyanimate_dataset/EvaluationSet/RealEstate10K/test_clips/"
-    videos1 = generate_video_tensor(root_dir=videos1_path, crop_size=512, max_frames=None, max_videos=100)
+    videos1_path = '/home/lingcheng/RealEstate10KAfterProcess/test_clips'
+    videos1 = generate_video_tensor(root_dir=videos1_path, crop_size=512, max_frames=None, max_videos=None)
 
-    videos2_path = "/home/chenyang_lei/video_diffusion_models/EasyAnimateCameraControl/output_dir_20241230_inpainting_with_mask_10000_realestate/test_clips"
-    # videos2_path = "/mnt/chenyang_lei/Datasets/easyanimate_dataset/EvaluationSet/RealEstate10K/test_clips/"
-    videos2 = generate_video_tensor(root_dir=videos2_path, crop_size=512, max_frames=None, max_videos=100)
+    videos2_path = "/home/lingcheng/EasyAnimateCameraControl/outputs/checkpoint1/test_clips"
+    videos2 = generate_video_tensor(root_dir=videos2_path, crop_size=512, max_frames=None, max_videos=None)
 
-    device = torch.device("cuda")
-    # device = torch.device("cpu")
+    # device = torch.device("cuda:0")
+    device = torch.device("cpu")
 
-    output_path = 'output_20241230_10000.json'
+    output_path = 'checkpoint3_2.json'
 
-    main(videos1, videos2, device, output_path)
+    main(videos1, videos2, device, output_path, videos1_path, videos2_path)

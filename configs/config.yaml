@@ -1,0 +1,23 @@
+metrics:
+  - type: fid
+    model:
+      dims: 2048
+    data:
+      dataset:
+        resize_shape: [256, 512]
+      batch_size: 49
+      num_workers: 16
+
+  # - type: fvd
+  #   model:
+  #     path: ./checkpoints/i3d_pretrained_400.pt
+  #   data:
+  #     dataset:
+  #       sequence_length: 7
+  #       resize_shape: [224, 224]
+  #     batch_size: 4
+  #     num_workers: 16
+
+# num_iters: 1000
+paths: [/home/lingcheng/RealEstate10KAfterProcess/test_clips/*/*.mp4, /home/lingcheng/EasyAnimateCameraControl/outputs/checkpoint2/test_clips/*/*.mp4]
+# paths: [/home/lingcheng/EasyAnimateCameraControl/outputs/easyanimate_v2v_with_mask/test_clips/*/*.mp4, /home/lingcheng/EasyAnimateCameraControl/outputs/easyanimate_v2v_with_mask/test_clips/*/*.mp4]

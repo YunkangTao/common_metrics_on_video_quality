@@ -32,7 +32,6 @@ def calculate_fvd(videos1, videos2, device, method='styleganv', only_final=False
     # support grayscale input, if grayscale -> channel*3
     # BTCHW -> BCTHW
     # videos -> [batch_size, channel, timestamps, h, w]
-
     videos1 = trans(videos1)
     videos2 = trans(videos2)
 
@@ -85,7 +84,7 @@ def main():
     SIZE = 64
     videos1 = torch.zeros(NUMBER_OF_VIDEOS, VIDEO_LENGTH, CHANNEL, SIZE, SIZE, requires_grad=False)
     videos2 = torch.ones(NUMBER_OF_VIDEOS, VIDEO_LENGTH, CHANNEL, SIZE, SIZE, requires_grad=False)
-    device = torch.device("cuda")
+    device = torch.device("cuda:0")
     # device = torch.device("cpu")
 
     result = calculate_fvd(videos1, videos2, device, method='videogpt', only_final=False)
