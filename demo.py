@@ -1,18 +1,19 @@
+import hashlib
 import json
-import torch
 import os
 from typing import List
+
+import cv2
 import torch
+import torch.nn.functional as F
 import torchvision
 from torchvision.transforms import functional
-import torch.nn.functional as F
-import cv2
 from tqdm import tqdm
-import hashlib
+
 from calculate_fvd import calculate_fvd
+from calculate_lpips import calculate_lpips
 from calculate_psnr import calculate_psnr
 from calculate_ssim import calculate_ssim
-from calculate_lpips import calculate_lpips
 
 
 def get_all_mp4_files(root_dir: str, max_videos) -> List[str]:
@@ -154,13 +155,13 @@ if __name__ == '__main__':
     videos1_path = "/mnt/chenyang_lei/Datasets/easyanimate_dataset/EvaluationSet/RealEstate10K/test_clips/"
     videos1 = generate_video_tensor(root_dir=videos1_path, crop_size=512, max_frames=None, max_videos=100)
 
-    videos2_path = "/home/chenyang_lei/video_diffusion_models/EasyAnimateCameraControl/output_dir_20241230_inpainting_with_mask_10000_realestate/test_clips"
+    videos2_path = "/home/chenyang_lei/video_diffusion_models/EasyAnimateCameraControl/output_dir_20250107_inpainting_with_mask_all_realestate/test_clips"
     # videos2_path = "/mnt/chenyang_lei/Datasets/easyanimate_dataset/EvaluationSet/RealEstate10K/test_clips/"
     videos2 = generate_video_tensor(root_dir=videos2_path, crop_size=512, max_frames=None, max_videos=100)
 
     device = torch.device("cuda")
     # device = torch.device("cpu")
 
-    output_path = 'output_20241230_10000.json'
+    output_path = 'output_20250107_all_realestate.json'
 
     main(videos1, videos2, device, output_path)
