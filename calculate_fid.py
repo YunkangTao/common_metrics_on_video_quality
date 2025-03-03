@@ -53,7 +53,7 @@ def build_model(type, cfg):
         raise NotImplementedError
 
 
-@hydra.main(config_path='/home/lingcheng/common_metrics_on_video_quality/configs', config_name='config', version_base=None)
+@hydra.main(config_path='/home/chenyang_lei/video_diffusion_models/common_metrics_on_video_quality/configs/', config_name='config', version_base=None)
 def Calculate_fid(cfg: DictConfig):
     print(OmegaConf.to_yaml(cfg))
 

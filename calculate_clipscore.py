@@ -5,9 +5,8 @@ from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 
 def calculate_clipscore(video_path1, video_path2):
     metric = Video_Metric()
-    print(os.path.join(video_path1, '*/*.mp4'))
-    video_paths1 = glob.glob(os.path.join(video_path1, '*/*.mp4'))
-    video_paths2 = glob.glob(os.path.join(video_path2, '*/*.mp4'))
+    video_paths1 = glob.glob(os.path.join(video_path1, '*.mp4'))
+    video_paths2 = glob.glob(os.path.join(video_path2, '*.mp4'))
     video_paths1.sort()
     video_paths2.sort()
     num_videos = min(len(video_paths1), len(video_paths2))
@@ -30,8 +29,8 @@ if __name__ == "__main__":
     parser.add_argument('--path2', type = str, help = "video path 2", default = '/home/lingcheng/EasyAnimateCameraControl/outputs/checkpoint3/test_clips')
     args = parser.parse_args()
     metric = Video_Metric()
-    video_paths1 = glob.glob(os.path.join(args.path1, '*/*.mp4'))
-    video_paths2 = glob.glob(os.path.join(args.path2, '*/*.mp4'))
+    video_paths1 = glob.glob(os.path.join(args.path1, '*.mp4'))
+    video_paths2 = glob.glob(os.path.join(args.path2, '*.mp4'))
     video_paths1.sort()
     video_paths2.sort()
     num_videos = len(video_paths2)

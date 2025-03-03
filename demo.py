@@ -35,7 +35,7 @@ def get_all_mp4_files(root_dir: str, max_videos = None) -> List[str]:
     return mp4_files
 
 
-def read_video_frames(video_path: str, max_frames: int = None, crop_size: int = 224) -> torch.Tensor:
+def read_video_frames(video_path: str, max_frames: int = None, crop_size: tuple = (224, 224), start_point = (None, None)) -> torch.Tensor:
     if not os.path.exists(video_path):
         raise FileNotFoundError(f"Video file not found: {video_path}")
 
@@ -64,15 +64,20 @@ def read_video_frames(video_path: str, max_frames: int = None, crop_size: int = 
         # 转换为 PIL 图像
         frame_pil = torchvision.transforms.functional.to_pil_image(frame)
         width, height = frame_pil.size
+        if start_point == (None, None):
+            left, top = 0, 0
+        else:
+            left, top = start_point
 
-        if crop_size > width or crop_size > height:
+        crop_height, crop_width = crop_size[1], crop_size[0]
+        if left + crop_width > width or top + crop_height > height:
             raise ValueError(f"Crop size {crop_size} is larger than frame size {width}x{height} in video {video_path}")
 
-        # 计算从右下角开始裁剪的左上角坐标
-        left = width - crop_size
-        top = height - crop_size
+        # # 计算从右下角开始裁剪的左上角坐标
+        # left = width - crop_width
+        # top = height - crop_height
         # 执行裁剪
-        frame_cropped = torchvision.transforms.functional.crop(frame_pil, top, left, crop_size, crop_size)
+        frame_cropped = torchvision.transforms.functional.crop(frame_pil, top, left, crop_height, crop_width)
         # 转换为张量并归一化到 [0,1]
         frame_tensor = torchvision.transforms.functional.to_tensor(frame_cropped)
         frames.append(frame_tensor)
@@ -101,7 +106,7 @@ def read_video_frames(video_path: str, max_frames: int = None, crop_size: int = 
     return video_tensor
 
 
-def generate_video_tensor(root_dir: str, crop_size: int = 224, max_frames: int = 30, max_videos: int = 1000) -> torch.Tensor:
+def generate_video_tensor(root_dir: str, crop_size: int = 224, max_frames: int = 30, max_videos: int = 1000, start_point = (None, None)) -> torch.Tensor:
     """
     生成包含所有视频的张量。
 
@@ -114,7 +119,8 @@ def generate_video_tensor(root_dir: str, crop_size: int = 224, max_frames: int =
         torch.Tensor: 张量形状为 [num, frames, channels, size, size]。
     """
     video_paths = get_all_mp4_files(root_dir, max_videos)
-    num_videos = len(video_paths)
+    video_paths.sort()
+    num_videos = min(max_videos, len(video_paths))
     if num_videos == 0:
         raise ValueError("指定目录下未找到 MP4 文件。")
 
@@ -122,9 +128,10 @@ def generate_video_tensor(root_dir: str, crop_size: int = 224, max_frames: int =
     video_tensors = []
 
     print(f"找到 {num_videos} 个视频。正在处理...")
-    for video_path in tqdm(video_paths, desc="处理视频"):
+    for i in tqdm(range(num_videos), desc="处理视频"):
+        video_path = video_paths[i]
         try:
-            video_tensor = read_video_frames(video_path, max_frames=max_frames, crop_size=crop_size)
+            video_tensor = read_video_frames(video_path, max_frames=max_frames, crop_size=crop_size, start_point=start_point)
             video_tensors.append(video_tensor)
         except Exception as e:
             print(f"处理 {video_path} 时出错: {e}")
@@ -140,14 +147,20 @@ def main(videos1, videos2, device, output_path, video_paths1, video_paths2):
     only_final = True
     # result['fvd'] = calculate_fvd(videos1, videos2, device, method='styleganv', only_final=only_final)
     result['fvd'] = calculate_fvd(videos1, videos2, device, method='videogpt', only_final=only_final)
+    print(result['fvd'])
     result['ssim'] = calculate_ssim(videos1, videos2, only_final=only_final)
+    print(result['ssim'])
     result['psnr'] = calculate_psnr(videos1, videos2, only_final=only_final)
+    print(result['psnr'])
     result['lpips'] = calculate_lpips(videos1, videos2, device, only_final=only_final)
-    result['fid'] = Calculate_fid()
-    result['clipscore'] = calculate_clipscore(video_paths1, video_paths2)
+    print(result['lpips'])
+    # result['fid'] = Calculate_fid()
+    # print(result['fid'])
+    # result['clipscore'] = calculate_clipscore(video_paths1, video_paths2)
+    # print(result['clipscore'])
 
-    # with open(output_path, 'w', encoding='utf-8') as file:
-    #     json.dump(result, file, indent=5, ensure_ascii=False)
+    with open(output_path, 'w', encoding='utf-8') as file:
+        json.dump(result, file, indent=5, ensure_ascii=False)
     print(result)
 
 
@@ -160,16 +173,16 @@ if __name__ == '__main__':
     # videos1 = torch.zeros(NUMBER_OF_VIDEOS, VIDEO_LENGTH, CHANNEL, SIZE, SIZE, requires_grad=False)
     # videos2 = torch.zeros(NUMBER_OF_VIDEOS, VIDEO_LENGTH, CHANNEL, SIZE, SIZE, requires_grad=False)
 
-    videos1_path = '/home/lingcheng/RealEstate10KAfterProcess/test_clips'
-    videos1 = generate_video_tensor(root_dir=videos1_path, crop_size=512, max_frames=None, max_videos=None)
+    videos1_path = '/home/chenyang_lei/video_diffusion_models/EasyAnimateCameraControl/output_dir_baseline/test_clips'
+    videos1 = generate_video_tensor(root_dir=videos1_path, crop_size=(512, 512), max_frames=None, max_videos=1000, start_point=(512, 512))
 
-    videos2_path = "/home/chenyang_lei/video_diffusion_models/EasyAnimateCameraControl/output_dir_20250107_inpainting_with_mask_all_realestate/test_clips"
+    videos2_path = "/home/chenyang_lei/video_diffusion_models/EasyAnimateCameraControl/output_dir_baseline/test_clips"
     # videos2_path = "/mnt/chenyang_lei/Datasets/easyanimate_dataset/EvaluationSet/RealEstate10K/test_clips/"
-    videos2 = generate_video_tensor(root_dir=videos2_path, crop_size=512, max_frames=None, max_videos=100)
+    videos2 = generate_video_tensor(root_dir=videos2_path, crop_size=(512, 512), max_frames=None, max_videos=1000, start_point=(1024, 512))
 
-    # device = torch.device("cuda:0")
-    device = torch.device("cpu")
+    device = torch.device("cuda:0")
+    # device = torch.device("cpu")
 
-    output_path = 'output_20250107_all_realestate.json'
+    output_path = 'output_baseline1.json'
 
     main(videos1, videos2, device, output_path, videos1_path, videos2_path)

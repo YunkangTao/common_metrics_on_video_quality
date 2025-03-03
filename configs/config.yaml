@@ -19,5 +19,5 @@ metrics:
   #     num_workers: 16
 
 # num_iters: 1000
-paths: [/home/lingcheng/RealEstate10KAfterProcess/test_clips/*/*.mp4, /home/lingcheng/EasyAnimateCameraControl/outputs/checkpoint2/test_clips/*/*.mp4]
+paths: [/home/chenyang_lei/video_diffusion_models/EasyAnimateCameraControl/baselines_result/cameractrl_svd_1000_test/pred_videos/*.mp4, /home/chenyang_lei/video_diffusion_models/EasyAnimateCameraControl/baselines_result/cameractrl_svd_1000_test/gt_videos/*.mp4]
 # paths: [/home/lingcheng/EasyAnimateCameraControl/outputs/easyanimate_v2v_with_mask/test_clips/*/*.mp4, /home/lingcheng/EasyAnimateCameraControl/outputs/easyanimate_v2v_with_mask/test_clips/*/*.mp4]
