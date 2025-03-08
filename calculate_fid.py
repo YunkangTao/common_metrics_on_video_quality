@@ -1,97 +1,94 @@
-import hydra
 import numpy as np
 import torch
-from omegaconf import DictConfig, OmegaConf
-from rich.progress import track
+from tqdm import tqdm
+import torchvision
+from scipy.linalg import sqrtm
+from torchvision.models import Inception_V3_Weights
+def trans(x):
+    # if greyscale images add channel
+    if x.shape[-3] == 1:
+        x = x.repeat(1, 1, 3, 1, 1)
 
-from fid_metrics import (
-    ImageDataset,
-    ImageSequenceDataset,
-    VideoDataset,
-    build_inception,
-    build_inception3d,
-    calculate_fid,
-    is_image_dir_path,
-    is_video_path,
-    postprocess_i2d_pred,
-)
+    # permute BTCHW -> BCTHW
+    x = x.permute(0, 2, 1, 3, 4) 
 
+    return x
 
-def build_loaders(type, paths, cfg):
-    dls = []
-    for path in paths:
-        bs = cfg.batch_size
-        dataset_cfgs = cfg.get('dataset')
-
-        if is_video_path(path):
-            if type == 'fid':
-                if dataset_cfgs:
-                    dataset_cfgs = dict(dataset_cfgs)
-                    dataset_cfgs['sequence_length'] = bs
-                else:
-                    dataset_cfgs = {'sequence_length': bs}
-                bs = 1
-            C = VideoDataset
-        elif is_image_dir_path(path):
-            C = ImageDataset if type == 'fid' else ImageSequenceDataset
-        else:
-            raise NotImplementedError
-
-        dataset = C(path, **dataset_cfgs) if dataset_cfgs else C(path)
-        print(len(dataset))
-        dl = torch.utils.data.DataLoader(dataset, bs, shuffle=True, num_workers=cfg.num_workers)
-        dls.append(dl)
-    return dls
+def calculate_fid(videos1, videos2, device, only_final=False):
 
 
-def build_model(type, cfg):
-    if type == 'fid':
-        return build_inception(cfg.dims)
-    elif type == 'fvd':
-        return build_inception3d(cfg.path)
-    else:
-        raise NotImplementedError
+    print("calculate_fid...")
+
+    # videos [batch_size, timestamps, channel, h, w]
+    
+    assert videos1.shape == videos2.shape
+
+    inception_model = torchvision.models.inception_v3(weights=Inception_V3_Weights.DEFAULT, transform_input=False)
+    # inception_model.to(device)
+    # i3d = load_i3d_pretrained(device=device)
+    fvd_results = []
+
+    videos1 = trans(videos1)
+    videos2 = trans(videos2)
+
+    fid_results = []
+
+    for i in tqdm(range(videos1.shape[0])):
+    
+        videos_clip1 = videos1[i].permute(1,0,2,3)
+        videos_clip2 = videos2[i].permute(1,0,2,3)
+        # print(videos_clip2.shape)
+        fid = calculate_video_fid(videos_clip1, videos_clip2, inception_model)
+    
+        # calculate FVD when timestamps[:clip]
+        fid_results.append(fid)
+
+    if only_final:
+        fid_results = np.mean(fid_results)
+    result = {
+        "value": fid_results,
+    }
+
+    return result
+
+def calculate_video_fid(real_tensor, fake_tensor, inception_model):
+    inception_model.eval()
+    with torch.no_grad():
+        real_features = inception_model(real_tensor).cpu().numpy()
+        fake_features = inception_model(fake_tensor).cpu().numpy()
+    
+    # Calculate statistics for both sets of features
+    mu1 = np.mean(real_features, axis=0)
+    sigma1 = np.cov(real_features, rowvar=False)
+
+    mu2 = np.mean(fake_features, axis=0)
+    sigma2 = np.cov(fake_features, rowvar=False)
+
+    # Calculate FID
+    covmean = sqrtm(sigma1.dot(sigma2) + 1e-6, disp=False)[0]
+    if np.iscomplexobj(covmean):
+        covmean = covmean.real
+    mean_diff = mu1 - mu2
+    fid = np.sum(mean_diff**2) + np.trace(sigma1 + sigma2 - 2 * covmean)
+    
+    return fid
+
+def main():
+    NUMBER_OF_VIDEOS = 8
+    VIDEO_LENGTH = 30
+    CHANNEL = 3
+    SIZE = 64
+    videos1 = torch.ones(NUMBER_OF_VIDEOS, VIDEO_LENGTH, CHANNEL, 576, 320, requires_grad=False)
+    videos2 = torch.ones(NUMBER_OF_VIDEOS, VIDEO_LENGTH, CHANNEL, 576, 320, requires_grad=False)
+    device = torch.device("cuda:0")
+    result = calculate_fid(videos1, videos2, device)
+    print("[fvd-videogpt ]", result["value"])
+
+    videos_random1 = torch.rand(NUMBER_OF_VIDEOS, VIDEO_LENGTH, CHANNEL, 576, 320, requires_grad=False)
+    videos_random2 = videos_random1.clone()
+    result = calculate_fid(videos_random1, videos_random2, device)
+    print("[fvd-styleganv]", result["value"])
 
 
-@hydra.main(config_path='/home/chenyang_lei/video_diffusion_models/common_metrics_on_video_quality/configs/', config_name='config', version_base=None)
-def Calculate_fid(cfg: DictConfig):
-    print(OmegaConf.to_yaml(cfg))
-
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f'Using device: {device}')
-
-    for metric_cfgs in cfg.metrics:
-        type = metric_cfgs.type
-        dls = build_loaders(type, cfg.paths, metric_cfgs.data)
-        model = build_model(type, metric_cfgs.model).to(device).eval()
-
-        feats = [[], []]
-        for i, dl in enumerate(dls):
-            if cfg.get('num_iters'):
-                seq = range(cfg.num_iters // metric_cfgs.data.batch_size)
-            else:
-                seq = range(len(dl))
-            dl = iter(dl)
-
-            for _ in track(seq, description=f'{type}_{i}'):
-                x = next(dl).to(device)
-                if type == 'fid' and x.dim() == 5:
-                    x = x.squeeze(0).transpose(0, 1)
-                elif type == 'fvd':
-                    x = x * 2 - 1
-                with torch.no_grad():
-                    if type == 'fid':
-                        pred = model(x)
-                        pred = postprocess_i2d_pred(pred)
-                    elif type == 'fvd':
-                        pred = model.extract_features(x)
-                        pred = pred.squeeze(3).squeeze(3).mean(2)
-                feats[i].append(pred.cpu().numpy())
-            feats[i] = np.concatenate(feats[i], axis=0)
-        fid = calculate_fid(*feats)
-        # print(f'{type.upper()}: {fid}')
-        return fid
-
-
-if __name__ == '__main__':
-    Calculate_fid()
+if __name__ == "__main__":
+    main()

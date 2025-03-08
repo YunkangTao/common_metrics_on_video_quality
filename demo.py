@@ -15,7 +15,7 @@ from calculate_lpips import calculate_lpips
 from calculate_psnr import calculate_psnr
 from calculate_ssim import calculate_ssim
 from calculate_lpips import calculate_lpips
-from calculate_fid import Calculate_fid
+from calculate_fid import calculate_fid
 from calculate_clipscore import calculate_clipscore
 
 
@@ -131,7 +131,7 @@ def generate_video_tensor(root_dir: str, crop_size: int = 224, max_frames: int =
     for i in tqdm(range(num_videos), desc="处理视频"):
         video_path = video_paths[i]
         try:
-            video_tensor = read_video_frames(video_path, max_frames=max_frames, crop_size=crop_size, start_point=start_point)
+            video_tensor = read_video_frames_without_crop(video_path)
             video_tensors.append(video_tensor)
         except Exception as e:
             print(f"处理 {video_path} 时出错: {e}")
@@ -154,15 +154,43 @@ def main(videos1, videos2, device, output_path, video_paths1, video_paths2):
     print(result['psnr'])
     result['lpips'] = calculate_lpips(videos1, videos2, device, only_final=only_final)
     print(result['lpips'])
-    # result['fid'] = Calculate_fid()
-    # print(result['fid'])
-    # result['clipscore'] = calculate_clipscore(video_paths1, video_paths2)
-    # print(result['clipscore'])
+    result['fid'] = calculate_fid(videos1, videos2, device, only_final=only_final)
+    print(result['fid'])
+    result['clipscore'] = calculate_clipscore(video_paths1, video_paths2)
+    print(result['clipscore'])
 
     with open(output_path, 'w', encoding='utf-8') as file:
         json.dump(result, file, indent=5, ensure_ascii=False)
     print(result)
 
+def read_video_frames_without_crop(video_path: str, max_frames: int = None) -> torch.Tensor:
+    if not os.path.exists(video_path):
+        raise FileNotFoundError(f"Video file not found: {video_path}")
+
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        raise ValueError(f"Cannot open video file: {video_path}")
+
+    frames = []
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+        
+        # 颜色空间转换
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frame = cv2.resize(frame, (576, 320))
+
+        frame_pil = torchvision.transforms.functional.to_pil_image(frame)
+        frame_tensor = torchvision.transforms.functional.to_tensor(frame_pil)
+        frames.append(frame_tensor)
+
+        if max_frames and len(frames) >= max_frames:
+            break
+    
+    cap.release()
+    # ...（保留原有填充/截断逻辑）
+    return torch.stack(frames)
 
 if __name__ == '__main__':
     # ps: pixel value should be in [0, 1]!
@@ -172,17 +200,26 @@ if __name__ == '__main__':
     # SIZE = 512
     # videos1 = torch.zeros(NUMBER_OF_VIDEOS, VIDEO_LENGTH, CHANNEL, SIZE, SIZE, requires_grad=False)
     # videos2 = torch.zeros(NUMBER_OF_VIDEOS, VIDEO_LENGTH, CHANNEL, SIZE, SIZE, requires_grad=False)
-
-    videos1_path = '/home/chenyang_lei/video_diffusion_models/EasyAnimateCameraControl/output_dir_baseline/test_clips'
+    ''' revision from zitian
+    1. do not need to crop when evaluation
+    2. image-level metrics like psnr, ssim, lpips,
+        eg: ssim of a image -> mean ssim of the video -> mean ssim of ssims
+       video-level metric like fid, fvd,
+        eg: fvd of a video -> mean fvd of fvds
+    '''
+    # videos1_path = '/home/chenyang_lei/video_diffusion_models/common_metrics_on_video_quality/baselines_result/cameractrl_svd_1000_test/gt_videos'
+    videos1_path = '/home/chenyang_lei/video_diffusion_models/common_metrics_on_video_quality/easy_animate/gt'
     videos1 = generate_video_tensor(root_dir=videos1_path, crop_size=(512, 512), max_frames=None, max_videos=1000, start_point=(512, 512))
 
-    videos2_path = "/home/chenyang_lei/video_diffusion_models/EasyAnimateCameraControl/output_dir_baseline/test_clips"
+    # videos2_path = '/home/chenyang_lei/video_diffusion_models/common_metrics_on_video_quality/baselines_result/motionctrl_svd_1000_test'
+    # videos2_path = "/home/chenyang_lei/video_diffusion_models/common_metrics_on_video_quality/baselines_result/cameractrl_svd_1000_test/pred_videos"
+    videos2_path = '/home/chenyang_lei/video_diffusion_models/common_metrics_on_video_quality/easy_animate/pred'
     # videos2_path = "/mnt/chenyang_lei/Datasets/easyanimate_dataset/EvaluationSet/RealEstate10K/test_clips/"
     videos2 = generate_video_tensor(root_dir=videos2_path, crop_size=(512, 512), max_frames=None, max_videos=1000, start_point=(1024, 512))
 
     device = torch.device("cuda:0")
     # device = torch.device("cpu")
 
-    output_path = 'output_baseline1.json'
+    output_path = 'output_ours.json'
 
     main(videos1, videos2, device, output_path, videos1_path, videos2_path)

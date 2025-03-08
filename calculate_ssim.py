@@ -83,17 +83,17 @@ def calculate_ssim(videos1, videos2, only_final=False):
     if only_final:
 
         ssim.append(np.mean(ssim_results))
-        ssim_std.append(np.std(ssim_results))
+        # ssim_std.append(np.std(ssim_results))
 
     else:
 
-        for clip_timestamp in range(len(video1)):
-            ssim.append(np.mean(ssim_results[:,clip_timestamp]))
-            ssim_std.append(np.std(ssim_results[:,clip_timestamp]))
+        for i in range(len(ssim_results)):
+            ssim.append(np.mean(ssim_results[i]))
+            # ssim_std.append(np.std(ssim_results[i]))
 
     result = {
         "value": ssim,
-        "value_std": ssim_std,
+        # "value_std": ssim_std,
     }
 
     return result
@@ -112,5 +112,10 @@ def main():
     print("[ssim avg]", result["value"])
     print("[ssim std]", result["value_std"])
 
+    videos_random1 = torch.rand(NUMBER_OF_VIDEOS, VIDEO_LENGTH, CHANNEL, SIZE, SIZE, requires_grad=False)
+    videos_random2 = videos_random1.clone()
+    result = calculate_ssim(videos_random1, videos_random2)
+    print("[ssim avg]", result["value"])
+    print("[ssim std]", result["value_std"])
 if __name__ == "__main__":
     main()

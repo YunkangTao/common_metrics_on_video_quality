@@ -70,17 +70,17 @@ def calculate_lpips(videos1, videos2, device, only_final=False):
     if only_final:
 
         lpips.append(np.mean(lpips_results))
-        lpips_std.append(np.std(lpips_results))
+        # lpips_std.append(np.std(lpips_results))
 
     else:
 
-        for clip_timestamp in range(len(video1)):
-            lpips.append(np.mean(lpips_results[:,clip_timestamp]))
-            lpips_std.append(np.std(lpips_results[:,clip_timestamp]))
+        for i in range(len(lpips_results)):
+            lpips.append(np.mean(lpips_results[i]))
+            # lpips_std.append(np.std(lpips_results[i]))
 
     result = {
         "value": lpips,
-        "value_std": lpips_std,
+        # "value_std": lpips_std,
     }
 
     return result
@@ -99,7 +99,13 @@ def main():
 
     result = calculate_lpips(videos1, videos2, device)
     print("[lpips avg]", result["value"])
-    print("[lpips std]", result["value_std"])
+    # print("[lpips std]", result["value_std"])
+
+    videos_random1 = torch.rand(NUMBER_OF_VIDEOS, VIDEO_LENGTH, CHANNEL, SIZE, SIZE, requires_grad=False)
+    videos_random2 = videos_random1.clone()
+    result = calculate_lpips(videos_random1, videos_random2, device)
+    print("[lpips avg]", result["value"])
+    # print("[lpips std]", result["value_std"])
 
 if __name__ == "__main__":
     main()

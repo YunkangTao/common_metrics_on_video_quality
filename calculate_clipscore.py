@@ -25,8 +25,8 @@ def calculate_clipscore(video_path1, video_path2):
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument('--path1', type = str, help = "video path 1", default = '/home/lingcheng/RealEstate10KAfterProcess/test_clips')
-    parser.add_argument('--path2', type = str, help = "video path 2", default = '/home/lingcheng/EasyAnimateCameraControl/outputs/checkpoint3/test_clips')
+    parser.add_argument('--path1', type = str, help = "video path 1", default = '/home/chenyang_lei/video_diffusion_models/common_metrics_on_video_quality/baselines_result/cameractrl_svd_1000_test/gt_videos')
+    parser.add_argument('--path2', type = str, help = "video path 2", default = '/home/chenyang_lei/video_diffusion_models/common_metrics_on_video_quality/baselines_result/cameractrl_svd_1000_test/gt_videos')
     args = parser.parse_args()
     metric = Video_Metric()
     video_paths1 = glob.glob(os.path.join(args.path1, '*.mp4'))
@@ -41,6 +41,7 @@ if __name__ == "__main__":
         video_path2 = video_paths2[i]
         scores, avg_score = metric.clip_v2v(video_path1, video_path2)
         sum_score += avg_score
+        print(scores)
     sum_score /= num_videos
     print(f'{num_videos} videos')
     print(f'Average ClipScore: {avg_score}')

@@ -55,19 +55,16 @@ def calculate_psnr(videos1, videos2, only_final=False):
     psnr_std = []
 
     if only_final:
-
         psnr.append(np.mean(psnr_results))
-        psnr_std.append(np.std(psnr_results))
-
+        # psnr_std.append(np.std(psnr_results))
     else:
-
-        for clip_timestamp in range(len(video1)):
-            psnr.append(np.mean(psnr_results[:,clip_timestamp]))
-            psnr_std.append(np.std(psnr_results[:,clip_timestamp]))
+        for i in range(len(psnr_results)):
+            psnr.append(np.mean(psnr_results[i]))
+            # psnr_std.append(np.std(psnr_results[i]))
 
     result = {
         "value": psnr,
-        "value_std": psnr_std,
+        # "value_std": psnr_std,
     }
 
     return result
@@ -84,7 +81,13 @@ def main():
 
     result = calculate_psnr(videos1, videos2)
     print("[psnr avg]", result["value"])
-    print("[psnr std]", result["value_std"])
+    # print("[psnr std]", result["value_std"])
+
+    videos_random1 = torch.rand(NUMBER_OF_VIDEOS, VIDEO_LENGTH, CHANNEL, SIZE, SIZE, requires_grad=False)
+    videos_random2 = videos_random1.clone()
+    result = calculate_psnr(videos_random1, videos_random2)
+    print("[psnr avg]", result["value"])
+    # print("[psnr std]", result["value_std"])
 
 if __name__ == "__main__":
     main()
